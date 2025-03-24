@@ -1,0 +1,122 @@
+//Initialize the segments
+const int segmentA = 2;
+const int segmentB = 3;
+const int segmentF = 4;
+const int segmentG = 5;
+const int segmentE = 6;
+const int segmentD = 7;
+const int segmentC = 8;
+
+// Function to turn off all segments
+void clearDisplay() {
+  digitalWrite(segmentA, LOW);
+  digitalWrite(segmentB, LOW);
+  digitalWrite(segmentC, LOW);
+  digitalWrite(segmentD, LOW);
+  digitalWrite(segmentE, LOW);
+  digitalWrite(segmentF, LOW);
+  digitalWrite(segmentG, LOW);
+}
+
+void setup() {
+  // Initialize the digital pins as OUTPUT
+  pinMode(segmentA, OUTPUT); 
+  pinMode(segmentB, OUTPUT); 
+  pinMode(segmentC, OUTPUT); 
+  pinMode(segmentD, OUTPUT); 
+  pinMode(segmentE, OUTPUT); 
+  pinMode(segmentF, OUTPUT); 
+  pinMode(segmentG, OUTPUT);
+}
+
+void loop() {
+  // Number 0
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentC, HIGH); 
+  digitalWrite(segmentD, HIGH); 
+  digitalWrite(segmentE, HIGH); 
+  digitalWrite(segmentF, HIGH);
+  delay(500);
+
+  // Number 1
+  clearDisplay();
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentC, HIGH);
+  delay(500);
+
+  // Number 2
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentD, HIGH); 
+  digitalWrite(segmentE, HIGH); 
+  digitalWrite(segmentG, HIGH);
+  delay(500);
+
+  // Number 3
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentC, HIGH); 
+  digitalWrite(segmentD, HIGH); 
+  digitalWrite(segmentG, HIGH);
+  delay(500);
+
+  // Number 4
+  clearDisplay();
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentC, HIGH); 
+  digitalWrite(segmentG, HIGH); 
+  digitalWrite(segmentF, HIGH);
+  delay(500);
+
+  // Number 5
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentF, HIGH); 
+  digitalWrite(segmentG, HIGH); 
+  digitalWrite(segmentC, HIGH); 
+  digitalWrite(segmentD, HIGH);
+  delay(500);
+
+  // Number 6
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentF, HIGH); 
+  digitalWrite(segmentG, HIGH); 
+  digitalWrite(segmentE, HIGH);
+  digitalWrite(segmentC, HIGH); 
+  digitalWrite(segmentD, HIGH);
+  delay(500);
+
+  // Number 7
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentC, HIGH);
+  delay(500);
+
+  // Number 8
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentC, HIGH); 
+  digitalWrite(segmentD, HIGH); 
+  digitalWrite(segmentE, HIGH); 
+  digitalWrite(segmentF, HIGH);
+  digitalWrite(segmentG, HIGH);
+  delay(500);
+
+  // Number 9
+  clearDisplay();
+  digitalWrite(segmentA, HIGH); 
+  digitalWrite(segmentB, HIGH); 
+  digitalWrite(segmentC, HIGH);  
+  digitalWrite(segmentF, HIGH);
+  digitalWrite(segmentG, HIGH);
+  delay(500);
+}
+
+
