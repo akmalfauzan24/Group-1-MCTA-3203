@@ -1,0 +1,27 @@
+//Experiment 3B
+#include <Servo.h>
+
+Servo servo;
+  int angle = 15;
+
+
+void setup() 
+{
+  Serial.begin (9600);
+
+
+}
+
+void loop() 
+{
+ if (angle > 0)
+ {
+  servo.write(angle);
+  delay(500);
+  angle = angle + 120;
+  servo.write(angle);
+  delay(500);
+  angle = angle - 120;
+ }
+
+}
