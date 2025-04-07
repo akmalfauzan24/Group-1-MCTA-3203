@@ -1,0 +1,55 @@
+import usb.core
+import usb.util
+import serial
+import time
+import json
+
+# Replace with your actual device's vendor and product ID
+VENDOR_ID = 0x1234
+PRODUCT_ID = 0x5678
+
+# Authorized UIDs
+authorized_cards = ["AB12C3D4", "1122AABB"]  # Replace with real UIDs
+
+# Initialize serial communication with Arduino
+try:
+    ser = serial.Serial('COM3', 9600, timeout=1)  # Change COM3 to your port
+    time.sleep(2)  # Wait for Arduino to initialize
+except Exception as e:
+    print("Could not open serial port:", e)
+    exit()
+
+# Find the RFID reader
+dev = usb.core.find(idVendor=VENDOR_ID, idProduct=PRODUCT_ID)
+if dev is None:
+    raise ValueError("RFID reader not found")
+
+# Detach kernel driver if necessary
+if dev.is_kernel_driver_active(0):
+    dev.detach_kernel_driver(0)
+
+# Set device configuration
+dev.set_configuration()
+endpoint = dev[0][(0, 0)][0]
+
+def read_card():
+    try:
+        data = dev.read(endpoint.bEndpointAddress, endpoint.wMaxPacketSize)
+        uid = ''.join([chr(byte) for byte in data if chr(byte).isalnum()])
+        return uid
+    except usb.core.USBError:
+        return None
+
+print("RFID system running. Scan a card...")
+
+while True:
+    card_id = read_card()
+    if card_id:
+        print(f"Card detected: {card_id}")
+        if card_id in authorized_cards:
+            print("Access granted.")
+            ser.write(b'A')
+        else:
+            print("Access denied.")
+            ser.write(b'D')
+        time.sleep(1)  # Delay between reads
