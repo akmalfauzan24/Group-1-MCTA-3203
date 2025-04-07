@@ -1,0 +1,37 @@
+#include <Servo.h>
+
+Servo servo;
+
+const int servoPin = 9;
+const int greenLedPin = 7;
+const int redLedPin = 8;
+
+int authorizedPosition = 180;
+int deniedPosition = 90;
+
+void setup() {
+  servo.attach(servoPin);
+  servo.write(deniedPosition); // default position
+  pinMode(greenLedPin, OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  Serial.begin(9600);
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    char command = Serial.read();
+
+    if (command == 'A') {
+      // Access granted
+      servo.write(authorizedPosition);
+      digitalWrite(greenLedPin, HIGH);
+      digitalWrite(redLedPin, LOW);
+    } 
+    else if (command == 'D') {
+      // Access denied
+      servo.write(deniedPosition);
+      digitalWrite(greenLedPin, LOW);
+      digitalWrite(redLedPin, HIGH);
+    }
+  }
+}
