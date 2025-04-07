@@ -3,6 +3,9 @@
 
 MPU6050 mpu;
 
+const int threshold = 1000; // Tune this as needed
+int previousGesture = -1;
+
 void setup() {
   Serial.begin(9600);
   Wire.begin();
@@ -10,21 +13,33 @@ void setup() {
 }
 
 void loop() {
+  int gesture = detectGesture();
+
+  if (gesture != previousGesture) {
+    Serial.print("Detected Gesture: ");
+    if (gesture == 1) {
+      Serial.println("Gesture 1");
+      // Add action for Gesture 1
+    } else if (gesture == 2) {
+      Serial.println("Gesture 2");
+      // Add action for Gesture 2
+    }
+    // Add more gesture cases as needed
+
+    previousGesture = gesture;
+  }
+}
+
+int detectGesture() {
   int16_t ax, ay, az, gx, gy, gz;
   mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-  Serial.print("Accel: ");
-  Serial.print(ax);
-  Serial.print(", ");
-  Serial.print(ay);
-  Serial.print(", ");
-  Serial.print(az);
-  Serial.print("  Gyro: ");
-  Serial.print(gx);
-  Serial.print(", ");
-  Serial.print(gy);
-  Serial.print(", ");
-  Serial.println(gz);
+  // Basic gesture conditions — customize as needed
+  if (ax > threshold && ay < threshold) {
+    return 1;
+  } else if (ax < -threshold && ay > threshold) {
+    return 2;
+  }
 
-  delay(100); // adjust sampling rate as needed
+  return 0; // No gesture
 }
