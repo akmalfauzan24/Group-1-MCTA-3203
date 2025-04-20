@@ -1,0 +1,30 @@
+float tempcelc;         // Temperature in Celsius
+int ldr_value;          // Raw LDR value (0–1023)
+int ldr_percent;        // LDR value converted to percentage
+int lm_value;           // Raw LM35 value (0–1023)
+
+void setup() 
+{
+  Serial.begin(9600);                     // Start serial communication
+  Serial.println("CLEARDATA");           // Clear previous PLX-DAQ data
+  Serial.println("LABEL,CLOCK,TEMPERATURE,LIGHT"); // Set Excel headers
+}
+
+void loop() 
+{
+  // Read and convert LM35 data to Celsius
+  lm_value = analogRead(A0);             // Read LM35 from pin A0
+  tempcelc = (lm_value * 5.0 / 1023.0) * 100.0; // Convert to °C (LM35 = 10mV/°C)
+
+  // Read and convert LDR data to percentage
+  ldr_value = analogRead(A1);            // Read LDR from pin A1
+  ldr_percent = map(ldr_value, 0, 1023, 0, 100); // Convert to percentage
+
+  // Send formatted data to PLX-DAQ
+  Serial.print("DATA,TIME,");            // PLX-DAQ requires this format
+  Serial.print(tempcelc);                // Print temperature in °C
+  Serial.print(",");
+  Serial.println(ldr_percent);           // Print light intensity in %
+
+  delay(1500);                            // Wait 1.5 seconds before next reading
+}
