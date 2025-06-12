@@ -1,0 +1,228 @@
+//ESP32 B
+
+
+#include <TFT_eSPI.h>
+#include <SPI.h>
+#include <ESP32Servo.h>
+
+// UART from ESP32-A
+#define UART_RX_A 32
+#define UART_TX_A 21
+
+// Pixy UART
+#define PIXY_UART Serial1
+#define PIXY_RX 16
+#define PIXY_TX 17
+
+// Servo Motor
+#define SERVO_PIN 26
+Servo myServo;
+
+// State flags
+bool flipping = false;
+bool machineIsOn = false;
+bool pixyDetected = false;
+bool waitingForWater = false;
+bool startWash = false;
+bool overheat = false;
+bool resetScheduled = false;
+
+String currentTemp = "--";  // latest temp reading
+
+// Timing
+unsigned long lastWaterCheckTime = 0;
+unsigned long washStartTime = 0;
+unsigned long lastMoveTime = 0;
+unsigned long resetStartTime = 0;
+
+TFT_eSPI tft = TFT_eSPI();
+
+void setup() {
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, UART_RX_A, UART_TX_A);  // from A
+  PIXY_UART.begin(115200, SERIAL_8N1, PIXY_RX, PIXY_TX); // Pixy
+
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextSize(3);
+  tft.setTextColor(TFT_WHITE);
+  displayMessage("Waiting for card...");
+
+  myServo.setPeriodHertz(50);
+  myServo.attach(SERVO_PIN, 500, 2400); // pulse range
+}
+
+void loop() {
+  // Reset state handling
+  if (resetScheduled && millis() - resetStartTime >= 10000) {
+    Serial.println("Resetting system...");
+
+    // Reset all flags
+    machineIsOn = false;
+    pixyDetected = false;
+    waitingForWater = false;
+    startWash = false;
+    overheat = false;
+    resetScheduled = false;
+    currentTemp = "--";
+
+    Serial2.println("reset");
+    displayMessage("Waiting for card...");
+    return;
+  }
+
+  // Skip everything else if in reset delay
+  if (resetScheduled) return;
+
+  // --- Handle messages from ESP32-A ---
+  if (Serial2.available()) {
+    String msg = Serial2.readStringUntil('\n');
+    msg.trim();
+
+    if (msg.startsWith("temp:")) {
+      currentTemp = msg.substring(5);
+      return;
+    }
+
+    Serial.print("From A: ");
+    Serial.println(msg);
+
+    if (msg == "okay") {
+      displayMessage("Machine is turned on");
+      machineIsOn = true;
+      delay(5000);
+
+    } else if (msg == "not okay") {
+      displayMessage("Access Denied");
+
+    } else if (msg == "fill water") {
+      displayMessage("Fill Water");
+      waitingForWater = true;
+      lastWaterCheckTime = millis();
+
+    } else if (msg == "water okay") {
+      displayMessage("Water OK, washing...");
+      waitingForWater = false;
+
+      Serial2.println("start_temp_monitor");
+      delay(5000);
+
+      myServo.write(90);
+      washStartTime = millis();
+      lastMoveTime = millis();
+      startWash = true;
+
+    } else if (msg == "overheat") {
+      displayMessage("Overheat! Stopped");
+      myServo.write(0);
+      startWash = false;
+      overheat = true;
+      scheduleReset();
+    }
+  }
+
+  // --- Pixy Detection ---
+  if (machineIsOn && !pixyDetected) {
+    int sig = checkPixySignature();
+    if (sig == 1) {
+      displayMessage("white mode");
+      pixyDetected = true;
+      delay(5000);
+    } else if (sig == 2) {
+      displayMessage("colour mode");
+      pixyDetected = true;
+      delay(5000);
+    }
+
+    if (pixyDetected) {
+      Serial2.println("check_water");
+      waitingForWater = true;
+      lastWaterCheckTime = millis();
+    }
+  }
+
+  // --- Recheck Water Every 10s ---
+  if (waitingForWater && millis() - lastWaterCheckTime >= 10000) {
+    Serial2.println("check_water");
+    lastWaterCheckTime = millis();
+  }
+
+  // --- Servo + Temp Display ---
+  if (startWash && !overheat) {
+    if (millis() - washStartTime >= 10000) {
+      myServo.write(0);
+      displayMessage("Thank you!");
+      startWash = false;
+      scheduleReset();
+      return;
+    }
+
+    if (millis() - lastMoveTime >= 500) {
+      myServo.write(flipping ? 45 : 135);
+      flipping = !flipping;
+      lastMoveTime = millis();
+    }
+
+    displayTemp("Washing in progress...");
+  }
+}
+
+// ===== Display Helpers =====
+void displayMessage(String text) {
+  tft.fillScreen(TFT_BLACK);
+  int x = (tft.width() - tft.textWidth(text)) / 2;
+  int y = tft.height() / 2 - 8;
+  tft.setCursor(x, y);
+  tft.setTextSize(3);
+  tft.setTextColor(TFT_WHITE);
+  tft.println(text);
+  Serial.println("TFT: " + text);
+}
+
+void displayTemp(String status) {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextSize(3);
+  tft.setTextColor(TFT_WHITE);
+  tft.setCursor(10, 30);
+  tft.println(status);
+
+  tft.setCursor(10, 80);
+  tft.setTextColor(TFT_GREEN);
+  tft.print("Temp: ");
+  tft.print(currentTemp);
+  tft.println(" C");
+}
+
+// ===== PixyCam Functions =====
+int checkPixySignature() {
+  while (PIXY_UART.available() >= 14) {
+    uint16_t sync = readWord();
+    if (sync != 0xaa55) continue;
+
+    readWord();  // checksum
+    uint16_t signature = readWord();
+    skipBytes(10);
+
+    Serial.print("Pixy Signature: ");
+    Serial.println(signature);
+    return signature;
+  }
+  return 0;
+}
+
+uint16_t readWord() {
+  while (PIXY_UART.available() < 2);
+  return PIXY_UART.read() | (PIXY_UART.read() << 8);
+}
+
+void skipBytes(int count) {
+  while (PIXY_UART.available() < count);
+  for (int i = 0; i < count; i++) PIXY_UART.read();
+}
+
+// ===== Reset Timer Function =====
+void scheduleReset() {
+  resetScheduled = true;
+  resetStartTime = millis();
+}
