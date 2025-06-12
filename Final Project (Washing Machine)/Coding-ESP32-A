@@ -1,0 +1,123 @@
+//ESP32 A
+
+#include <SPI.h>
+#include <MFRC522v2.h>
+#include <MFRC522DriverSPI.h>
+#include <MFRC522DriverPinSimple.h>
+#include <MFRC522Debug.h>
+#include <DHT.h>
+
+#define SS_PIN 5
+#define RST_PIN 22
+
+#define UART_TX 17
+#define UART_RX 16
+
+#define WATER_SENSOR_PIN 34
+#define DHT_PIN 4
+#define DHT_TYPE DHT11
+#define TEMP_THRESHOLD 35.0
+
+MFRC522DriverPinSimple ss_pin(SS_PIN);
+MFRC522DriverSPI driver{ss_pin};
+MFRC522 mfrc522{driver};
+DHT dht(DHT_PIN, DHT_TYPE);
+
+const String validUID = "c3955d09";  // 👈 Change this to match your card
+bool rfidValidated = false;
+bool tempMonitoring = false;
+unsigned long lastTempCheck = 0;
+
+void setup() {
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, UART_RX, UART_TX);
+
+  SPI.begin();
+  mfrc522.PCD_Init();
+  MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);
+
+  dht.begin();
+  pinMode(WATER_SENSOR_PIN, INPUT);
+
+  Serial.println(F("Scan RFID card..."));
+}
+
+void loop() {
+  // Step 1: RFID authentication
+  if (!rfidValidated && mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+    String uidString = "";
+    for (byte i = 0; i < mfrc522.uid.size; i++) {
+      if (mfrc522.uid.uidByte[i] < 0x10) uidString += "0";
+      uidString += String(mfrc522.uid.uidByte[i], HEX);
+    }
+
+    Serial.print("Card UID: ");
+    Serial.println(uidString);
+
+    if (uidString.equalsIgnoreCase(validUID)) {
+      Serial2.println("okay");
+      Serial.println("Sent: okay");
+      rfidValidated = true;
+    } else {
+      Serial2.println("not okay");
+      Serial.println("Sent: not okay");
+    }
+
+    mfrc522.PICC_HaltA();
+    delay(1000);
+  }
+
+  // Step 2: UART message handling
+  if (Serial2.available()) {
+    String cmd = Serial2.readStringUntil('\n');
+    cmd.trim();
+
+    if (cmd.equalsIgnoreCase("check_water")) {
+      int waterLevel = analogRead(WATER_SENSOR_PIN);
+      Serial.print("Water Level: ");
+      Serial.println(waterLevel);
+
+      if (waterLevel > 500) {
+        Serial2.println("water okay");
+        Serial.println("Sent: water okay");
+      } else {
+        Serial2.println("fill water");
+        Serial.println("Sent: fill water");
+      }
+    }
+
+    else if (cmd.equalsIgnoreCase("start_temp_monitor")) {
+      tempMonitoring = true;
+      Serial.println("Temp monitoring ON");
+      lastTempCheck = millis();
+    }
+
+    else if (cmd.equalsIgnoreCase("reset")) {
+      rfidValidated = false;
+      tempMonitoring = false;
+      Serial.println("System reset: Ready for new card.");
+    }
+  }
+
+  // Step 3: Temperature monitoring
+  if (tempMonitoring && millis() - lastTempCheck >= 2000) {
+    float temp = dht.readTemperature();
+    lastTempCheck = millis();
+
+    if (!isnan(temp)) {
+      Serial.print("Temp: ");
+      Serial.println(temp);
+
+      Serial2.print("temp:");
+      Serial2.println(temp);
+
+      if (temp >= TEMP_THRESHOLD) {
+        Serial2.println("overheat");
+        Serial.println("Sent: overheat");
+        tempMonitoring = false;
+      }
+    } else {
+      Serial.println("DHT read failed");
+    }
+  }
+}
